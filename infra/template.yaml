@@ -1,0 +1,115 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Daily Standup Summary Infrastructure
+
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+    AllowedValues:
+      - dev
+      - staging
+      - prod
+    Description: Environment name
+  EmailAddress:
+    Type: String
+    Description: Email address to receive daily standup summary
+
+Resources:
+  # IAM Role for Lambda
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub daily-standup-summary-${Environment}-lambda-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: !Sub daily-standup-summary-${Environment}-logs-policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: arn:aws:logs:*:*:*
+        - PolicyName: !Sub daily-standup-summary-${Environment}-sns-policy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - sns:Publish
+                Resource: !Ref StandupSummaryTopic
+
+  # Lambda function
+  StandupSummaryFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: !Sub daily-standup-summary-${Environment}
+      CodeUri: ../app
+      Handler: entrypoints.lambda_handler.lambda_handler
+      Runtime: python3.10
+      Timeout: 300
+      MemorySize: 256
+      Architectures: ['arm64']
+      Environment:
+        Variables:
+          ENVIRONMENT: !Ref Environment
+          SNS_TOPIC_ARN: !Ref StandupSummaryTopic
+      Role: !GetAtt LambdaExecutionRole.Arn
+  
+  StandupSummaryLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/aws/lambda/daily-standup-summary-${Environment}"
+      RetentionInDays: 7
+  
+  # SNS Topic for sending summaries
+  StandupSummaryTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: Daily standup summary
+      TopicName: daily-standup-summary
+  
+  StandupSummaryTopicSubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Protocol: email
+      TopicArn: !Ref StandupSummaryTopic
+      Endpoint: !Ref EmailAddress
+
+  # EventBridge rule to trigger Lambda at 9 AM WIB (UTC+7)
+  DailyScheduleRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Name: !Sub daily-standup-summary-schedule-${Environment}
+      Description: Triggers daily standup summary Lambda function at 9 AM WIB on weekdays
+      ScheduleExpression: cron(0 2 ? * MON-FRI *)  # 2 AM UTC = 9 AM WIB
+      State: ENABLED
+      Targets:
+        - Arn: !GetAtt StandupSummaryFunction.Arn
+          Id: DailyStandupSummaryTarget
+
+  # Permission for EventBridge to invoke Lambda
+  StandupSummaryPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref StandupSummaryFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt DailyScheduleRule.Arn
+
+Outputs:
+  LambdaFunctionArn:
+    Description: ARN of the Lambda function
+    Value: !GetAtt StandupSummaryFunction.Arn
+  SNSTopicArn:
+    Description: ARN of the SNS topic
+    Value: !Ref StandupSummaryTopic

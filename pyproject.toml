@@ -1,0 +1,9 @@
+[project]
+name = "daily-standup-summary"
+version = "0.1.0"
+description = "A serverless application that collects a software engineer's daily tasks, schedules, commits, and tickets from Notion, Google Calendar, GitLab, and Jira. It summarizes the information using OpenAI and sends a report via Amazon SNS every weekday at 9:00 AM."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pip>=25.1.1",
+]
