@@ -83,11 +83,13 @@ A serverless application that collects a software engineer's daily tasks, schedu
 **Goal**: Fetch recently updated or closed Jira tickets.
 
 ### Tasks
-- [ ] Define `JiraPort` interface in `app/domain/ports/jira_port.py`
-- [ ] Create `Ticket` entity in `app/domain/model/ticket.py`
-- [ ] Implement `JiraAdapter` in `app/adapters/jira/` using Jira REST API (JQL filtering)
+- [x] Define `TasksQueryService` interface in `app/domain/ports/tasks_query_service.py`
+- [x] Create `Task` entity in `app/domain/model/task.py`
+- [ ] Implement `JiraQueryService` in `app/adapters/jira_query_service.py` using Jira REST API (JQL filtering)
 - [ ] Handle auth using basic auth or OAuth
 
+### Deliverables
+- [ ] Unit tests for JIRA adapter in `app/adapters/tests`
 ---
 
 ## ✅ Phase 6: Adapter – OpenAI (Summarization)

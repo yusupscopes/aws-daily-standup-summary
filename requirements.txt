@@ -1,8 +1,2 @@
 # AWS SDK
-boto3>=1.26.0
-
-# Date/Time handling
-pytz>=2023.3
-
-# JSON handling
-python-json-logger>=2.0.7 
+boto3>=1.39.4
